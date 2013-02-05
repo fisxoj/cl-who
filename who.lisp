@@ -79,7 +79,45 @@ internally.  Utility function used by TREE-TO-TEMPLATE."
                collect (cons (first rest) (second rest)) into attr
              finally (setq attr-list attr))
        (setq body (cdr sexp))))
+    (multiple-value-bind (stripped-tag attrs) (read-tag-name-attrs tag)
+      (setf tag stripped-tag
+	    attr-list (append attr-list attrs)))
     (convert-tag-to-string-list tag attr-list body body-fn)))
+
+(defun read-tag-name-attrs (tag)
+  (declare (optimize speed space))
+  ;; state keeps track of wether we're reading an id or class
+  ;; Value accumulates characters until we hit
+  ;; tag holds the tag without any added id's or classes
+  (let ((raw-tag (string-downcase tag))
+	state
+	value
+	tag
+	ids classes)
+    (loop
+       for i from 0 by 1
+       for c across raw-tag
+
+       unless (member c (list #\# #\.))
+       do (push c value)
+       do (when (or (member c (list #\. #\#) :test 'char=) (= (1- (length raw-tag)) i))
+	    (cond
+	      ((eq state :id)
+	       (push (coerce (nreverse value) 'string) ids))
+	      ((eq state :class)
+	       (push (coerce (nreverse value) 'string) classes))
+	      ((null state) (setf tag value)))
+	    (setf value nil)
+
+	    (cond
+	      ((char= c #\.)
+	       (setf state :id))
+	      ((char= c #\#)
+	       (setf state :class))))
+	 
+       finally (return (values (coerce (nreverse tag) 'string)
+			       (remove-if #'null (list (when ids (cons :id (format nil "~{~a~^ ~}" ids)))
+						       (when classes (cons :class (format nil "~{~a~^ ~}" classes))))))))))
 
 (defun convert-attributes (attr-list)
   "Helper function for CONVERT-TAG-TO-STRING-LIST which converts the
