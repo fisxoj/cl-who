@@ -110,9 +110,9 @@ internally.  Utility function used by TREE-TO-TEMPLATE."
 	    (setf value nil)
 
 	    (cond
-	      ((char= c #\.)
-	       (setf state :id))
 	      ((char= c #\#)
+	       (setf state :id))
+	      ((char= c #\.)
 	       (setf state :class))))
 	 
        finally (return (values (coerce (nreverse tag) 'string)
